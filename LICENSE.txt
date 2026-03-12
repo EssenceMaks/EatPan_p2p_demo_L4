@@ -1,0 +1,10 @@
+EatPan — End User License Agreement
+
+By installing and using EatPan, you agree to these terms:
+
+1. Your data is stored locally on your device and synchronized through P2P network.
+2. You maintain full ownership of your personal data.
+3. Contributing storage/bandwidth to the network may earn you rewards.
+4. The software is provided "as is" without warranty.
+
+© 2024-2026 EatPan Team

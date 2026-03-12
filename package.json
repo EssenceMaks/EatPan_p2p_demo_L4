@@ -1,0 +1,85 @@
+{
+  "name": "eatpan-p4-terminal",
+  "version": "0.1.0",
+  "description": "EatPan P4 Terminal — P2P децентралізований додаток",
+  "author": "EatPan Team",
+  "license": "MIT",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "node launch.cjs",
+    "dev": "node launch.cjs --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac"
+  },
+  "dependencies": {
+    "@chainsafe/libp2p-gossipsub": "^12.0.0",
+    "@chainsafe/libp2p-noise": "^15.0.0",
+    "@chainsafe/libp2p-yamux": "^6.0.0",
+    "@libp2p/identify": "^1.0.0",
+    "@libp2p/mdns": "^10.0.0",
+    "@libp2p/tcp": "^9.0.0",
+    "electron-updater": "^6.3.0",
+    "libp2p": "^1.4.0",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^25.0.0"
+  },
+  "overrides": {
+    "it-queue": "3.1.0",
+    "mortice": "3.0.6"
+  },
+  "build": {
+    "appId": "com.eatpan.p4terminal",
+    "productName": "EatPan",
+    "icon": "assets/icon.png",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.cjs",
+      "p2p.mjs",
+      "preload.cjs",
+      "launch.cjs",
+      "renderer/**/*",
+      "assets/**/*",
+      "LICENSE.txt",
+      "node_modules/**/*",
+      "!node_modules/electron/**/*",
+      "!node_modules/electron-builder/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.food-and-drink",
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "license": "LICENSE.txt",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://update.eatpan.com/releases/"
+      }
+    ]
+  }
+}
