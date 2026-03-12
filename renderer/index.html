@@ -198,11 +198,16 @@
     .peer-info .peer-name { font-size: 12px; font-weight: 500; }
     .peer-info .peer-id { font-size: 9px; color: var(--text-dim); font-family: monospace; }
 
+    .peer-conn-type {
+      margin-left: auto;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
     .peer-online-dot {
       width: 5px; height: 5px;
       border-radius: 50%;
       background: var(--green);
-      margin-left: auto;
       flex-shrink: 0;
       box-shadow: 0 0 4px rgba(74, 222, 128, 0.3);
     }
@@ -338,7 +343,7 @@
   <!-- Title Bar -->
   <div class="titlebar">
     <h1>🍳 EatPan</h1>
-    <span class="version">v0.5.0</span>
+    <span class="version">v0.6.0</span>
     <span class="my-name" id="myName">...</span>
     <div class="status-badge">
       <div class="status-dot" id="statusDot"></div>
@@ -426,23 +431,28 @@
     function updatePeers(peers) {
       $peerList.innerHTML = ''
       let count = 0
+      let relayCount = 0
       for (const [id, info] of Object.entries(peers)) {
         count++
+        if (info.via === 'relay') relayCount++
         const div = document.createElement('div')
         div.className = 'peer-item'
         const c = peerColor(info.name)
         const isMe = id === myPeerId
+        const connIcon = info.via === 'relay' ? '🌐' : (info.via === 'self' ? '' : '🏠')
         div.innerHTML = `
           <div class="peer-avatar" style="background:${c}">${info.name[0].toUpperCase()}</div>
           <div class="peer-info">
             <div class="peer-name">${esc(info.name)}${isMe ? ' (ти)' : ''}</div>
             <div class="peer-id">${id.substring(0,12)}...</div>
           </div>
+          <span class="peer-conn-type" title="${info.via === 'relay' ? 'Через relay (internet)' : 'Пряме з\'єднання (LAN)'}">${connIcon}</span>
           <div class="peer-online-dot"></div>
         `
         $peerList.appendChild(div)
       }
-      $('connectionInfo').textContent = `P2P • ${count} онлайн`
+      const relayInfo = relayCount > 0 ? ` • ${relayCount} 🌐` : ''
+      $('connectionInfo').textContent = `P2P • ${count} онлайн${relayInfo}`
     }
 
     // ═══════════════ SEND ═══════════════

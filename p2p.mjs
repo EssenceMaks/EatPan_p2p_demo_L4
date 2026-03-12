@@ -1,7 +1,11 @@
 /**
  * EatPan P2P Backend — libp2p нода для Electron
  * 
- * Експортує createP2PBackend() для використання main.js
+ * Експортує createP2PBackend() для використання main.cjs
+ * 
+ * Discovery:
+ *   - mDNS — локальна мережа (свої пристрої)
+ *   - Bootstrap + Relay — інтернет
  */
 
 // Polyfill: Node 18 (Electron 28) не має CustomEvent
@@ -16,25 +20,51 @@ if (typeof globalThis.CustomEvent === 'undefined') {
 
 import { createLibp2p } from 'libp2p'
 import { tcp } from '@libp2p/tcp'
+import { webSockets } from '@libp2p/websockets'
 import { noise } from '@chainsafe/libp2p-noise'
 import { yamux } from '@chainsafe/libp2p-yamux'
 import { gossipsub } from '@chainsafe/libp2p-gossipsub'
 import { identify } from '@libp2p/identify'
 import { mdns } from '@libp2p/mdns'
+import { bootstrap } from '@libp2p/bootstrap'
+import { circuitRelayTransport } from '@libp2p/circuit-relay-v2'
 import { randomBytes } from 'crypto'
 
 const TOPIC = 'eatpan-chat'
 
+// ─── Relay/Bootstrap адреси ───
+// Поки що використовуємо локальний relay.
+// Для продакшну замінити на публічний IP/домен.
+// Формат: /ip4/<IP>/tcp/<PORT>/p2p/<PEER_ID>
+const RELAY_ADDRS = (process.env.RELAY_ADDRS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean)
+
 export async function createP2PBackend(callbacks = {}) {
   const nodeName = 'User-' + randomBytes(3).toString('hex')
 
+  // ─── Peer discovery modules ───
+  const peerDiscovery = [mdns({ interval: 2000 })]
+  if (RELAY_ADDRS.length > 0) {
+    peerDiscovery.push(bootstrap({ list: RELAY_ADDRS }))
+  }
+
+  // ─── Транспорти ───
+  const transports = [tcp(), webSockets()]
+  if (RELAY_ADDRS.length > 0) {
+    transports.push(circuitRelayTransport({ discoverRelays: 1 }))
+  }
+
   // ─── Створення libp2p ноди ───
   const node = await createLibp2p({
-    addresses: { listen: ['/ip4/0.0.0.0/tcp/0'] },
-    transports: [tcp()],
+    addresses: {
+      listen: ['/ip4/0.0.0.0/tcp/0']
+    },
+    transports,
     connectionEncryption: [noise()],
     streamMuxers: [yamux()],
-    peerDiscovery: [mdns({ interval: 2000 })],
+    peerDiscovery,
     services: {
       identify: identify(),
       pubsub: gossipsub({
@@ -48,14 +78,30 @@ export async function createP2PBackend(callbacks = {}) {
 
   const peerId = node.peerId.toString()
   const onlinePeers = new Map()
-  onlinePeers.set(peerId, { name: nodeName, lastSeen: Date.now() })
+  onlinePeers.set(peerId, { name: nodeName, lastSeen: Date.now(), via: 'self' })
+
+  // Визначити тип з'єднання
+  const getConnectionType = (remotePeerId) => {
+    const conns = node.getConnections(remotePeerId)
+    for (const conn of conns) {
+      const remoteAddr = conn.remoteAddr.toString()
+      if (remoteAddr.includes('/p2p-circuit/')) return 'relay'
+    }
+    return 'direct'
+  }
 
   console.log(`[P2P] Started: ${nodeName} (${peerId.substring(0, 12)}...)`)
+  if (RELAY_ADDRS.length > 0) {
+    console.log(`[P2P] Relay bootstrap: ${RELAY_ADDRS.length} address(es)`)
+  } else {
+    console.log(`[P2P] No relay configured — mDNS only (local network)`)
+  }
 
   // ─── P2P Events ───
   node.addEventListener('peer:connect', (evt) => {
     const remote = evt.detail.toString()
-    console.log(`[P2P] Connected: ${remote.substring(0, 16)}...`)
+    const connType = getConnectionType(remote)
+    console.log(`[P2P] Connected (${connType}): ${remote.substring(0, 16)}...`)
     callbacks.onConnected?.(remote)
   })
 
@@ -78,7 +124,12 @@ export async function createP2PBackend(callbacks = {}) {
       }
 
       if (data.type === 'ping') {
-        onlinePeers.set(data.peerId, { name: data.name, lastSeen: Date.now() })
+        const connType = getConnectionType(data.peerId)
+        onlinePeers.set(data.peerId, {
+          name: data.name,
+          lastSeen: Date.now(),
+          via: connType
+        })
         callbacks.onPeersUpdate?.(Object.fromEntries(onlinePeers))
       }
     } catch (e) { /* ignore */ }
@@ -127,6 +178,7 @@ export async function createP2PBackend(callbacks = {}) {
       addresses: node.getMultiaddrs().map(a => a.toString()),
       peers: Object.fromEntries(onlinePeers),
       connections: node.getConnections().length,
+      relayConfigured: RELAY_ADDRS.length > 0,
     }),
 
     stop: async () => {
