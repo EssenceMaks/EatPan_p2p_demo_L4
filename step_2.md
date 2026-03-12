@@ -1,47 +1,108 @@
-# Step 2 — Internet P2P (Circuit Relay)
+# Step 2 — Internet P2P (Circuit Relay) + Web Chat
 
-> **Дата**: 12.03.2026  
-> **Версія**: v0.6.0
+> **Дата**: 12-13.03.2026  
+> **Версія**: v0.9.0  
+> **Репо**: [github.com/EssenceMaks/EatPan_p2p_demo_L4](https://github.com/EssenceMaks/EatPan_p2p_demo_L4)
 
 ---
 
 ## Що зроблено
 
 ### 1. Relay Server (`relay.mjs`)
-- Standalone Node.js скрипт — relay ноди для NAT traversal
+- Standalone Node.js скрипт — circuit-relay-v2 для NAT traversal
 - TCP:9090 + WebSocket:9091
 - `circuitRelayServer()` — 128 слотів, 10хв/реєстрація, 16MB/ліміт
-- GossipSub — relay бере участь у pub/sub mesh
+- GossipSub — **підписаний на `eatpan-chat` топік** (ВАЖЛИВО: без підписки повідомлення не ретранслюються між пірами!)
 - Запуск: `node relay.mjs` або `npm run relay`
 
-### 2. P2P Client (`p2p.mjs`) — оновлений
+### 2. AWS EC2 Deployment (free tier)
+| Ресурс | Значення |
+|--------|----------|
+| Instance | `i-06d16331014323230` (t3.micro, eu-central-1) |
+| AMI | Amazon Linux 2023 |
+| Public IP | `63.177.83.41` |
+| PeerId | `12D3KooWPjuetDeAeyArEwXZtnnyRm9E4sgbLkS4y9myzESB8pa5` |
+| Security Group | `sg-0839c49792c56eea5` |
+| Порти | 22 (SSH), 80, 443, 9090 (TCP relay), 9091 (WS relay) |
+| Node.js | v20.20.1 (native CustomEvent) |
+| Сервіс | systemd `eatpan-relay` (auto-restart) |
+| SSH Key | `C:\Users\user\.ssh\eatpan-relay-fixed.pem` |
+
+### 3. P2P Client (`p2p.mjs`) — оновлений
 | Компонент | Для чого |
 |-----------|----------|
 | `@libp2p/tcp` | Прямі TCP з'єднання (LAN) |
-| `@libp2p/websockets` | WebSocket з'єднання (через relay) |
-| `@libp2p/circuit-relay-v2` | Транспорт через relay (NAT traversal) |
+| `@libp2p/websockets` | WebSocket (через relay) |
+| `@libp2p/circuit-relay-v2@1.0.25` | Транспорт через relay (NAT traversal) |
 | `@libp2p/bootstrap` | Підключення до відомих relay нод |
 | `@libp2p/mdns` | Local network discovery (збережено!) |
 
-### 3. RELAY_ADDRS env var
-- Адреси relay нод передаються через `RELAY_ADDRS` env var
-- Формат: `/ip4/<IP>/tcp/<PORT>/p2p/<PEER_ID>`
-- Без RELAY_ADDRS → тільки mDNS (локальна мережа)
+**Дефолтний relay** захардкоджений в `p2p.mjs`:
+```
+DEFAULT_RELAY = '/ip4/63.177.83.41/tcp/9090/p2p/12D3KooWPjuetDeAeyArEwXZtnnyRm9E4sgbLkS4y9myzESB8pa5'
+```
 
-### 4. UI оновлення
-- Тип з'єднання біля кожного піра: 🏠 (local) / 🌐 (relay)
-- Сайдбар footer: кількість relay з'єднань
-- Версія: v0.6.0
+### 4. Route Detection (`getRoute()`)
+Визначає як саме відбувається зв'язок з кожним піром:
+
+| Route | Іконка | Визначення |
+|-------|--------|------------|
+| `direct` | 🏠 | mDNS discovery + local IP (192.168.x, 10.x, 172.x) |
+| `relay` | 🌐 | Повідомлення через AWS relay GossipSub mesh |
+| `relay-node` | 🔄 | Сам relay сервер (відомий PeerId) |
+
+Алгоритм:
+1. PeerId = relay → `relay-node`
+2. Адреса містить `/p2p-circuit/` → `relay` (circuit transport)
+3. Знайдений через mDNS + direct TCP + local IP → `direct`
+4. Інакше → `relay`
+
+### 5. Web Chat (`web-chat/`)
+Браузерний клієнт для P2P чату:
+- `p2p-browser.mjs` — libp2p через WebSocket (browser-compatible)
+- `build.mjs` — esbuild бандлер → `p2p-bundle.js`
+- `index.html` — dark theme UI, peer list, chat
+
+### 6. Single-File Chat (`eatpan-chat.html`)
+- Один HTML файл (560KB) — весь libp2p інлайнений
+- Відкривається з будь-де, без сервера
+- `build-single.mjs` — збирає з `web-chat/index.html` + `p2p-bundle.js`
+
+### 7. GitHub Pages (`docs/`)
+- URL: **https://essencemaks.github.io/EatPan_p2p_demo_L4/**
+- Source: `/docs` branch `main`
+- **⚠️ ПРОБЛЕМА**: Mixed Content — GitHub Pages = HTTPS, relay = ws:// (не wss://)
+- **TODO**: потрібен домен + SSL (Let's Encrypt + nginx) для wss:// на relay
 
 ---
 
-## Нові зависимості
+## Нові файли
 
 ```
-@libp2p/circuit-relay-v2@1.0.25
+P4_Terminal/
+├── relay.mjs           # Relay server (circuit-relay-v2 + GossipSub)
+├── aws-user-data.sh    # EC2 bootstrap script (systemd service)
+├── build-single.mjs    # Збирає single-file HTML
+├── eatpan-chat.html    # Портативний single-file web chat
+├── docs/
+│   └── index.html      # GitHub Pages (single-file)
+└── web-chat/
+    ├── package.json    # Deps для browser libp2p
+    ├── p2p-browser.mjs # Browser P2P module
+    ├── build.mjs       # esbuild конфіг
+    ├── p2p-bundle.js   # Бандл (560KB)
+    └── index.html      # Web chat UI
+```
+
+---
+
+## Нові залежності
+
+```
+@libp2p/circuit-relay-v2@1.0.25   # ⚠️ ТОЧНА ВЕРСІЯ — 1.1.x ламає identify
 @libp2p/websockets@8.1.1
 @libp2p/bootstrap@10.1.1
-@libp2p/utils@6.1.1
+@libp2p/utils@6.1.1               # ⚠️ ТОЧНА ВЕРСІЯ — потрібна peer-job-queue
 ```
 
 ---
@@ -50,24 +111,65 @@
 
 | Проблема | Рішення |
 |----------|---------|
-| `@libp2p/utils` версія не має `peer-job-queue` | Оновлено до 6.1.1 |
-| `identify` capability mismatch з circuit-relay | Downgrade relay до 1.0.25 (сумісний з identify 1.0.x) |
-| `/p2p-circuit` listen fails без relay | Видалено з listen — relay транспорт сам знаходить relay |
+| `identify` capability mismatch з circuit-relay | Downgrade relay до 1.0.25 |
+| `CustomEvent` crash на EC2 (Node 18) | Node.js v20.20.1 на EC2 (native CustomEvent) |
+| Relay не ретранслює повідомлення | `node.services.pubsub.subscribe('eatpan-chat')` на relay |
+| PeerId змінюється при рестарті relay | Оновлювати `DEFAULT_RELAY` в `p2p.mjs` після рестарту |
+| `$ already declared` в single-file HTML | Перейменовано `$` → `$el`, обгорнуто в IIFE |
+| GitHub Pages Mixed Content (HTTPS → ws://) | **TODO**: домен + SSL cert (Let's Encrypt + nginx) |
+| Всі піри показують 🏠 | Нові `getRoute()` — трекає mDNS vs bootstrap discovery |
+
+---
+
+## AWS Relay — управління
+
+```powershell
+# SSH на relay
+ssh -i C:\Users\user\.ssh\eatpan-relay-fixed.pem ec2-user@63.177.83.41
+
+# Логи
+sudo journalctl -u eatpan-relay --no-pager -n 20
+
+# Перезапуск
+sudo systemctl restart eatpan-relay
+
+# Статус
+sudo systemctl status eatpan-relay
+```
 
 ---
 
 ## Як тестувати
 
-### Локально (одна мережа)
-```bash
-# Термінал 1 — запустити relay
-node relay.mjs
-# Запам'ятай multiaddr з логів relay
+### Internet P2P (два ПК)
+1. ПК1: запустити EatPan v0.9.0
+2. ПК2: запустити EatPan v0.9.0 (через інший інтернет)
+3. Обидва автоматично підключаються до AWS relay → бачать один одного 🌐
 
-# Термінал 2 — клієнт з relay
-$env:RELAY_ADDRS = '<multiaddr>'; node launch.cjs
-```
+### Web Chat (браузер)
+1. Відкрити `eatpan-chat.html` в браузері
+2. Або: https://essencemaks.github.io/EatPan_p2p_demo_L4/ (⚠️ потрібен WSS)
 
-### Через інтернет
-1. На **цьому ПК**: `node relay.mjs` (+ port forwarding 9090)
-2. На **другому ПК**: `RELAY_ADDRS=/ip4/<публічний_IP>/tcp/9090/p2p/<PEER_ID>` в env
+### Локально (LAN)
+- mDNS discovery працює як раніше → піри показують 🏠
+
+---
+
+## Наступні кроки
+
+### WSS для GitHub Pages
+- Потрібен домен (Let's Encrypt не видає cert на IP)
+- nginx reverse proxy: wss → ws на EC2
+- Оновити `RELAY_WS` в `p2p-browser.mjs` на `wss://domain/ws/...`
+
+### Elastic IP
+- Поточний IP може змінитися при stop/start EC2
+- Потрібно додати Elastic IP або DNS
+
+### Releases
+| Версія | Зміни |
+|--------|-------|
+| v0.6.0 | Relay code + circuit-relay |
+| v0.7.0 | AWS relay, zero-config |
+| v0.8.0 | GossipSub fix + web chat |
+| v0.9.0 | Route detection (direct/relay/relay-node) |
