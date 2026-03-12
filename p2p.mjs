@@ -34,7 +34,7 @@ const TOPIC = 'eatpan-chat'
 
 // ─── Relay/Bootstrap адреси ───
 // AWS EC2 relay (eu-central-1, free tier)
-const DEFAULT_RELAY = '/ip4/63.177.83.41/tcp/9090/p2p/12D3KooWMjkMb6pR7SFWrgZ9fXeUZHHpYyhrTpmMtbEeCgr7zUrd'
+const DEFAULT_RELAY = '/ip4/63.177.83.41/tcp/9090/p2p/12D3KooWPjuetDeAeyArEwXZtnnyRm9E4sgbLkS4y9myzESB8pa5'
 
 const RELAY_ADDRS = (process.env.RELAY_ADDRS || DEFAULT_RELAY)
   .split(',')

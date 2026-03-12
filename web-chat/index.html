@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>EatPan Web Chat</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #14141f;
+      --surface2: #1e1e2e;
+      --border: #2a2a3e;
+      --accent: #7c6aff;
+      --green: #4ade80;
+      --red: #f87171;
+      --text: #e2e2f0;
+      --dim: #888899;
+      --orange: #fb923c;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ─── HEADER ─── */
+    .header {
+      background: linear-gradient(135deg, #12121a, #1a1a2e);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--orange));
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header .badge {
+      font-size: 10px;
+      color: var(--dim);
+      background: var(--surface2);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .header .status {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--dim);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--red);
+      transition: background 0.3s;
+    }
+
+    .status-dot.online {
+      background: var(--green);
+      box-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
+    }
+
+    /* ─── MAIN ─── */
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ─── PEERS ─── */
+    .peers {
+      width: 180px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 10px 8px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 600px) {
+      .peers { display: none; }
+    }
+
+    .peers h2 {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--dim);
+      margin-bottom: 8px;
+      padding: 0 6px;
+    }
+
+    .peer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-bottom: 2px;
+    }
+
+    .peer:hover { background: var(--surface2); }
+
+    .peer-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 4px rgba(74,222,128,0.3);
+      flex-shrink: 0;
+    }
+
+    .peer-name { font-weight: 500; }
+    .peer-type { font-size: 10px; margin-left: auto; }
+
+    /* ─── CHAT ─── */
+    .chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .msg {
+      max-width: 75%;
+      padding: 8px 12px;
+      border-radius: 14px;
+      font-size: 13px;
+      line-height: 1.4;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.mine {
+      align-self: flex-end;
+      background: linear-gradient(135deg, var(--accent), #6b5ce7);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .msg.other {
+      align-self: flex-start;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+
+    .msg.system {
+      align-self: center;
+      background: none;
+      color: var(--dim);
+      font-size: 11px;
+      padding: 4px 0;
+    }
+
+    .msg-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 3px;
+    }
+
+    .msg-name { font-size: 11px; font-weight: 600; opacity: 0.8; }
+    .msg-time { font-size: 10px; opacity: 0.5; }
+
+    /* ─── INPUT ─── */
+    .input-area {
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .input-row input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+    }
+
+    .input-row input:focus { border-color: var(--accent); }
+
+    .input-row button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .input-row button:hover { background: #6b5ce7; }
+    .input-row button:disabled { opacity: 0.5; cursor: default; }
+
+    /* ─── SCROLLBAR ─── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ─── CONNECTING OVERLAY ─── */
+    .connecting {
+      position: fixed;
+      inset: 0;
+      background: rgba(10,10,15,0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 100;
+      transition: opacity 0.3s;
+    }
+
+    .connecting.hidden { opacity: 0; pointer-events: none; }
+
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .connecting p {
+      color: var(--dim);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Connecting Overlay -->
+  <div class="connecting" id="overlay">
+    <div class="spinner"></div>
+    <p id="overlayText">Підключення до P2P мережі...</p>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <h1>🍳 EatPan</h1>
+    <span class="badge">Web Chat</span>
+    <div class="status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Connecting...</span>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="peers" id="peersPanel">
+      <h2>Online</h2>
+      <div id="peerList"></div>
+    </div>
+
+    <div class="chat">
+      <div class="messages" id="messages"></div>
+
+      <div class="input-area">
+        <div class="input-row">
+          <input type="text" id="msgInput" placeholder="Напиши повідомлення..." autocomplete="off" disabled>
+          <button id="sendBtn" disabled>➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import './p2p-bundle.js'
+
+    const $ = id => document.getElementById(id)
+    const colors = ['#7c6aff','#fb923c','#4ade80','#f87171','#38bdf8','#e879f9','#fbbf24','#34d399']
+
+    function peerColor(name) {
+      let h = 0
+      for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h)
+      return colors[Math.abs(h) % colors.length]
+    }
+
+    function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+    let p2p = null
+    let myPeerId = ''
+
+    function addMsg(data) {
+      const div = document.createElement('div')
+      const mine = data.peerId === myPeerId
+      div.className = `msg ${mine ? 'mine' : 'other'}`
+      const t = new Date(data.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
+      div.innerHTML = `
+        <div class="msg-header">
+          <span class="msg-name">${esc(data.from)}</span>
+          <span class="msg-time">${t}</span>
+        </div>
+        <div>${esc(data.text)}</div>
+      `
+      $('messages').appendChild(div)
+      $('messages').scrollTop = $('messages').scrollHeight
+    }
+
+    function addSys(text) {
+      const div = document.createElement('div')
+      div.className = 'msg system'
+      div.textContent = text
+      $('messages').appendChild(div)
+      $('messages').scrollTop = $('messages').scrollHeight
+    }
+
+    function updatePeers(peers) {
+      const list = $('peerList')
+      list.innerHTML = ''
+      let count = 0
+      for (const [id, info] of Object.entries(peers)) {
+        count++
+        const div = document.createElement('div')
+        div.className = 'peer'
+        const isMe = id === myPeerId
+        div.innerHTML = `
+          <div class="peer-dot"></div>
+          <span class="peer-name">${esc(info.name)}${isMe ? ' (ти)' : ''}</span>
+          <span class="peer-type">${info.via === 'self' ? '' : '🌐'}</span>
+        `
+        list.appendChild(div)
+      }
+      $('statusText').textContent = `${count} онлайн`
+    }
+
+    function send() {
+      const text = $('msgInput').value.trim()
+      if (!text || !p2p) return
+      p2p.sendChat(text)
+      $('msgInput').value = ''
+      $('msgInput').focus()
+    }
+
+    $('sendBtn').addEventListener('click', send)
+    $('msgInput').addEventListener('keydown', e => { if (e.key === 'Enter') send() })
+
+    // ─── START ───
+    async function init() {
+      try {
+        $('overlayText').textContent = 'Підключення до relay...'
+
+        p2p = await window.startP2P({
+          onChat: (msg) => addMsg(msg),
+          onPeers: (peers) => updatePeers(peers),
+          onStatus: (s) => { $('overlayText').textContent = s }
+        })
+
+        myPeerId = p2p.peerId
+
+        $('overlay').classList.add('hidden')
+        $('statusDot').classList.add('online')
+        $('statusText').textContent = 'Online'
+        $('msgInput').disabled = false
+        $('sendBtn').disabled = false
+        $('msgInput').focus()
+        addSys(`👋 Ти — ${p2p.name}. Підключений через WebSocket relay.`)
+
+      } catch (err) {
+        $('overlayText').textContent = '❌ Помилка: ' + err.message
+        console.error(err)
+      }
+    }
+
+    init()
+  </script>
+
+</body>
+</html>
