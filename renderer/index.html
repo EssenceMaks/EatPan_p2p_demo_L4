@@ -366,6 +366,21 @@
     <div class="sidebar">
       <h2>Online</h2>
       <div class="peer-list" id="peerList"></div>
+
+      <!-- L3 Cluster Dashboard -->
+      <div id="l3Panel" style="display:none; padding:8px; border-top:1px solid var(--border); margin-top:8px;">
+        <div style="font-size:10px; color:var(--accent); font-weight:600; margin-bottom:4px;">L3 CLUSTER</div>
+        <div id="l3StatsBox" style="font-size:10px; color:var(--text-dim); line-height:1.6;"></div>
+      </div>
+
+      <button id="l3ToggleBtn" style="
+        width:calc(100% - 16px); margin:8px; padding:6px 10px;
+        background:linear-gradient(135deg, rgba(124,106,255,0.15), rgba(124,106,255,0.05));
+        border:1px solid var(--accent); border-radius:6px;
+        color:var(--accent); font-size:11px; font-weight:600;
+        cursor:pointer; transition:all 0.2s;
+      ">⬆ Upgrade to L3</button>
+
       <div class="sidebar-footer" id="connectionInfo">P2P • libp2p</div>
     </div>
 
@@ -511,6 +526,96 @@
       addSystem(`❌ Пір від'єднався`)
     })
 
+    // ═══════════════ L2 BACKBONE STATUS ═══════════════
+
+    // Create L2 status badge in titlebar
+    const l2Badge = document.createElement('div')
+    l2Badge.id = 'l2Badge'
+    l2Badge.style.cssText = `
+      font-size:10px; padding:2px 7px; border-radius:10px;
+      background:rgba(255,255,255,0.08); color:var(--text-dim);
+      border:1px solid var(--border); cursor:default;
+      margin-left:auto; flex-shrink:0;
+    `
+    l2Badge.textContent = 'L2 ···'
+    document.querySelector('.titlebar').appendChild(l2Badge)
+
+    async function updateL2Badge() {
+      if (!window.eatpan.backboneStatus) return
+      try {
+        const s = await window.eatpan.backboneStatus()
+        if (s?.online) {
+          l2Badge.textContent = `L2 ✓ ${s.pending > 0 ? '(' + s.pending + ' pending)' : 'synced'}`
+          l2Badge.style.background = 'rgba(74, 222, 128, 0.15)'
+          l2Badge.style.borderColor = '#4ade80'
+          l2Badge.style.color = '#4ade80'
+        } else {
+          l2Badge.textContent = 'L2 offline'
+          l2Badge.style.background = 'rgba(255,255,255,0.05)'
+          l2Badge.style.borderColor = 'var(--border)'
+          l2Badge.style.color = 'var(--text-dim)'
+        }
+      } catch { l2Badge.textContent = 'L2 —' }
+    }
+    updateL2Badge()
+    setInterval(updateL2Badge, 5000)
+
+    // ═══════════════ CHAT HISTORY FROM L2 ═══════════════
+
+    window.eatpan.onChatHistory((messages) => {
+      if (!messages || messages.length === 0) return
+      // Insert a history separator first
+      const sep = document.createElement('div')
+      sep.style.cssText = `
+        text-align:center; color:var(--text-dim); font-size:10px;
+        padding:6px 0; border-top:1px solid var(--border);
+        border-bottom:1px solid var(--border); margin:8px 0; opacity:0.6;
+      `
+      sep.textContent = `── ${messages.length} historical messages from L2 ──`
+      // Prepend before current messages
+      const firstMsg = $messages.querySelector('.msg-row')
+      if (firstMsg) {
+        $messages.insertBefore(sep, firstMsg)
+      } else {
+        $messages.appendChild(sep)
+      }
+      messages.forEach(msg => {
+        addMessage({ ...msg, isHistory: true })
+      })
+      addSystem(`📚 Loaded ${messages.length} messages from L2 Backbone`)
+      updateL2Badge()
+    })
+
+    // ═══════════════ IPC LISTENERS ═══════════════
+
+    // Статус ноди
+    window.eatpan.getStatus().then((status) => {
+      if (!status) return
+      myName = status.name
+      myPeerId = status.peerId
+      $('myName').textContent = myName
+      $('statusDot').classList.add('online')
+      $('statusText').textContent = 'Online'
+      $messages.innerHTML = ''
+      addSystem(`👋 Ти — ${myName}. Шукаю інших пірів...`)
+      updatePeers(status.peers)
+    })
+
+    // Повідомлення
+    window.eatpan.onChatMessage((msg) => addMessage(msg))
+
+    // Оновлення списку пірів
+    window.eatpan.onPeersUpdate((peers) => updatePeers(peers))
+
+    // Новий пір
+    window.eatpan.onPeerConnected((id) => {
+      addSystem(`✅ Новий пір підключився`)
+    })
+
+    window.eatpan.onPeerDisconnected((id) => {
+      addSystem(`❌ Пір від'єднався`)
+    })
+
     // ═══════════════ AUTO-UPDATE ═══════════════
     const $updateBanner = $('updateBanner')
     const $updateText = $('updateText')
@@ -558,6 +663,90 @@
         window.eatpan.downloadUpdate()
       }
     })
+
+    // ═══════════════ L3 CLUSTER MODE ═══════════════
+
+    const $l3Btn = $('l3ToggleBtn')
+    const $l3Panel = $('l3Panel')
+    const $l3Stats = $('l3StatsBox')
+    let currentMode = 'L4'
+
+    $l3Btn.addEventListener('click', async () => {
+      $l3Btn.disabled = true
+      $l3Btn.textContent = '...'
+      if (currentMode === 'L4') {
+        const result = await window.eatpan.upgradeToL3()
+        if (result.success) {
+          currentMode = 'L3+L4'
+          $l3Btn.textContent = '⬇ Downgrade to L4'
+          $l3Panel.style.display = 'block'
+          $l3Btn.style.borderColor = '#4ade80'
+          $l3Btn.style.color = '#4ade80'
+          addSystem('⬆ Upgraded to L3 Cluster mode!')
+        } else {
+          $l3Btn.textContent = '⬆ Upgrade to L3'
+          addSystem(`❌ L3 upgrade failed: ${result.reason}`)
+        }
+      } else {
+        await window.eatpan.downgradeToL4()
+        currentMode = 'L4'
+        $l3Btn.textContent = '⬆ Upgrade to L3'
+        $l3Panel.style.display = 'none'
+        $l3Btn.style.borderColor = 'var(--accent)'
+        $l3Btn.style.color = 'var(--accent)'
+        addSystem('⬇ Downgraded to L4 Edge mode')
+      }
+      $l3Btn.disabled = false
+    })
+
+    // Listen for mode changes from main process
+    window.eatpan.onModeChanged((s) => {
+      currentMode = s.mode
+      if (s.mode === 'L3+L4') {
+        $l3Btn.textContent = '⬇ Downgrade to L4'
+        $l3Panel.style.display = 'block'
+        $l3Btn.style.borderColor = '#4ade80'
+        $l3Btn.style.color = '#4ade80'
+      } else {
+        $l3Btn.textContent = '⬆ Upgrade to L3'
+        $l3Panel.style.display = 'none'
+        $l3Btn.style.borderColor = 'var(--accent)'
+        $l3Btn.style.color = 'var(--accent)'
+      }
+    })
+
+    // Poll cluster stats every 5s (when in L3 mode)
+    setInterval(async () => {
+      if (currentMode !== 'L3+L4') return
+      const stats = await window.eatpan.clusterStats()
+      if (!stats) return
+      $l3Stats.innerHTML = `
+        <div>⏱ Uptime: <b>${stats.uptimeFormatted}</b></div>
+        <div>📦 Buffer: <b>${stats.buffer}</b> msgs</div>
+        <div>✓ Synced: <b>${stats.totalSynced}</b></div>
+        <div>↓ Received: <b>${stats.totalReceived}</b></div>
+        <div>👥 Peers: <b>${stats.peerCount}</b></div>
+        <div>L2: ${stats.backboneOnline
+          ? '<span style="color:#4ade80">online</span>'
+          : '<span style="color:#f87171">offline</span>'
+        }</div>
+        ${stats.peers.length > 0 ? '<div style="margin-top:4px; border-top:1px solid var(--border); padding-top:4px;">' +
+          stats.peers.map(p =>
+            `<div style="opacity:${p.stale?0.4:1}">${p.route === 'direct' ? '🏠' : '🌐'} ${p.name} <span style="color:var(--text-dim)">${p.lastSeen}</span></div>`
+          ).join('') + '</div>' : ''}
+      `
+    }, 5000)
+
+    // Check Docker on startup
+    window.eatpan.checkDocker().then(d => {
+      if (d.available) {
+        $l3Btn.title = `Docker: ${d.version}`
+      } else {
+        $l3Btn.title = 'Docker not found — L3 will run in-memory mode'
+      }
+    })
+
   </script>
 </body>
 </html>
+

@@ -24,4 +24,19 @@ contextBridge.exposeInMainWorld('eatpan', {
   onUpdateError: (cb) => ipcRenderer.on('update-error', (_e, err) => cb(err)),
   downloadUpdate: () => ipcRenderer.send('download-update'),
   installUpdate: () => ipcRenderer.send('install-update'),
+
+  // L2 Backbone
+  onChatHistory: (cb) => ipcRenderer.on('chat-history', (_e, msgs) => cb(msgs)),
+  backboneStatus: () => ipcRenderer.invoke('backbone-status'),
+  backboneFlush: () => ipcRenderer.send('backbone-flush'),
+
+  // L3 Cluster Mode
+  checkDocker: () => ipcRenderer.invoke('check-docker'),
+  modeStatus: () => ipcRenderer.invoke('mode-status'),
+  upgradeToL3: () => ipcRenderer.invoke('upgrade-to-l3'),
+  downgradeToL4: () => ipcRenderer.invoke('downgrade-to-l4'),
+  clusterStats: () => ipcRenderer.invoke('cluster-stats'),
+  onModeChanged: (cb) => ipcRenderer.on('mode-changed', (_e, s) => cb(s)),
 })
+
+

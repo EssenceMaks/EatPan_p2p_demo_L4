@@ -33,6 +33,8 @@ import { mdns } from '@libp2p/mdns'
 import { bootstrap } from '@libp2p/bootstrap'
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2'
 import { randomBytes } from 'crypto'
+import { randomUUID } from 'crypto'
+
 
 const TOPIC = 'eatpan-chat'
 
@@ -53,12 +55,16 @@ const RELAY_PEER_IDS = new Set(
   }).filter(Boolean)
 )
 
-export async function createP2PBackend(callbacks = {}) {
+export async function createP2PBackend(callbacks = {}, backboneClient = null) {
   const nodeName = 'User-' + randomBytes(3).toString('hex')
+
 
   // ─── Track discovery source ───
   const discoveredViaMdns = new Set()
   const discoveredViaBootstrap = new Set()
+
+  // ─── Dedup: track sent message IDs to skip relay echo ───
+  const sentMessageIds = new Set()
 
   // ─── Peer discovery modules ───
   const peerDiscovery = [mdns({ interval: 2000 })]
@@ -189,9 +195,15 @@ export async function createP2PBackend(callbacks = {}) {
       const data = JSON.parse(new TextDecoder().decode(evt.detail.data))
 
       if (data.type === 'chat' && data.text) {
+        // Skip own messages (relay can echo back via different path)
+        if (data.id && sentMessageIds.has(data.id)) return
         // Add route info to chat messages
         data.route = getRoute(data.peerId)
+        // Ensure UUID exists (older clients may not have one)
+        if (!data.id) data.id = randomUUID()
         callbacks.onChat?.(data)
+        // → Sync received message to L2 Backbone
+        backboneClient?.enqueueSync(data)
       }
 
       if (data.type === 'ping') {
@@ -229,18 +241,30 @@ export async function createP2PBackend(callbacks = {}) {
   // ─── Публічний API ───
   return {
     sendChat: async (text) => {
+      const msgId = randomUUID()
+      // Track this ID so we skip relay echo
+      sentMessageIds.add(msgId)
+      // Bound the set to prevent memory leak
+      if (sentMessageIds.size > 200) {
+        const first = sentMessageIds.values().next().value
+        sentMessageIds.delete(first)
+      }
       const msg = {
+        id: msgId,
         type: 'chat',
         from: nodeName,
         peerId,
         text,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        vectorClock: { [peerId]: 1 }
       }
       try {
         const encoded = new TextEncoder().encode(JSON.stringify(msg))
         await node.services.pubsub.publish(TOPIC, encoded)
       } catch (e) { /* ignore */ }
       callbacks.onChat?.(msg)
+      // → Sync sent message to L2 Backbone
+      backboneClient?.enqueueSync(msg)
     },
 
     getStatus: () => ({
@@ -251,10 +275,13 @@ export async function createP2PBackend(callbacks = {}) {
       connections: node.getConnections().length,
       relayConfigured: RELAY_ADDRS.length > 0,
       relayPeerIds: [...RELAY_PEER_IDS],
+      backboneOnline: backboneClient?.isOnline ?? false,
+      backbonePending: backboneClient?.pendingSync?.length ?? 0,
     }),
 
     stop: async () => {
       clearInterval(pingInterval)
+      await backboneClient?.flush()  // → Flush pending sync before stop
       await node.stop()
       console.log('[P2P] Stopped')
     }
