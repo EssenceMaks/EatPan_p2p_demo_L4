@@ -13,11 +13,13 @@
       --surface2: #1e1e2e;
       --border: #2a2a3e;
       --accent: #7c6aff;
+      --accent-glow: rgba(124, 106, 255, 0.3);
       --green: #4ade80;
       --red: #f87171;
       --text: #e2e2f0;
-      --dim: #888899;
+      --text-dim: #888899;
       --orange: #fb923c;
+      --yellow: #fbbf24;
     }
 
     body {
@@ -30,41 +32,52 @@
       overflow: hidden;
     }
 
-    /* ─── HEADER ─── */
-    .header {
+    /* ─── TITLEBAR ─── */
+    .titlebar {
       background: linear-gradient(135deg, #12121a, #1a1a2e);
       border-bottom: 1px solid var(--border);
-      padding: 12px 16px;
+      padding: 8px 16px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       flex-shrink: 0;
+      height: 42px;
     }
 
-    .header h1 {
-      font-size: 16px;
-      font-weight: 700;
+    .titlebar h1 {
+      font-size: 14px;
+      font-weight: 600;
       background: linear-gradient(135deg, var(--accent), var(--orange));
       background-clip: text;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
-    .header .badge {
+    .titlebar .version {
       font-size: 10px;
-      color: var(--dim);
+      color: var(--text-dim);
       background: var(--surface2);
-      padding: 2px 8px;
-      border-radius: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
     }
 
-    .header .status {
+    .my-name {
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 500;
+      padding: 3px 8px;
+      background: rgba(124, 106, 255, 0.1);
+      border-radius: 10px;
+      border: 1px solid rgba(124, 106, 255, 0.2);
       margin-left: auto;
-      font-size: 11px;
-      color: var(--dim);
+    }
+
+    .status-badge {
       display: flex;
       align-items: center;
       gap: 5px;
+      font-size: 11px;
+      color: var(--text-dim);
     }
 
     .status-dot {
@@ -79,33 +92,38 @@
       box-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
     }
 
-    /* ─── MAIN ─── */
+    /* ─── MAIN LAYOUT ─── */
     .main {
       display: flex;
       flex: 1;
       overflow: hidden;
     }
 
-    /* ─── PEERS ─── */
-    .peers {
-      width: 180px;
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      width: 200px;
       background: var(--surface);
       border-right: 1px solid var(--border);
-      padding: 10px 8px;
-      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
       flex-shrink: 0;
     }
 
     @media (max-width: 600px) {
-      .peers { display: none; }
+      .sidebar { display: none; }
     }
 
-    .peers h2 {
+    .room-section-title {
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: var(--dim);
-      margin-bottom: 8px;
+      color: var(--text-dim);
+      padding: 14px 14px 6px;
+    }
+
+    .peer-list {
+      flex: 1;
+      overflow-y: auto;
       padding: 0 6px;
     }
 
@@ -113,13 +131,42 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 8px;
+      padding: 8px 10px;
       border-radius: 6px;
-      font-size: 12px;
-      margin-bottom: 2px;
+      margin-bottom: 1px;
+      transition: background 0.15s;
     }
 
     .peer:hover { background: var(--surface2); }
+
+    .peer-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .peer-info .peer-name { font-size: 12px; font-weight: 500; }
+    .peer-info .peer-id { font-size: 9px; color: var(--text-dim); font-family: monospace; }
+
+    .peer-conn-type {
+      margin-left: auto;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .peer-online-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
+      box-shadow: 0 0 4px rgba(74, 222, 128, 0.3);
+    }
 
     .peer-dot {
       width: 5px; height: 5px;
@@ -129,11 +176,32 @@
       flex-shrink: 0;
     }
 
-    .peer-name { font-weight: 500; }
+    .peer-name { font-weight: 500; font-size: 12px; }
     .peer-type { font-size: 10px; margin-left: auto; }
 
-    /* ─── CHAT ─── */
-    .chat {
+    .sidebar-footer {
+      padding: 10px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--text-dim);
+      text-align: center;
+    }
+
+    /* ─── CHAT HEADER ─── */
+    .chat-header {
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .chat-header .chat-room-name { font-size: 14px; font-weight: 600; }
+    .chat-header .chat-room-type { font-size: 10px; color: var(--text-dim); }
+
+    /* ─── CHAT AREA ─── */
+    .chat-area {
       flex: 1;
       display: flex;
       flex-direction: column;
@@ -143,29 +211,30 @@
     .messages {
       flex: 1;
       overflow-y: auto;
-      padding: 12px 16px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
 
     .msg {
-      max-width: 75%;
+      max-width: 60%;
       padding: 8px 12px;
       border-radius: 14px;
       font-size: 13px;
       line-height: 1.4;
       animation: fadeIn 0.2s ease;
+      user-select: text;
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
+      from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
     .msg.mine {
       align-self: flex-end;
-      background: linear-gradient(135deg, var(--accent), #6b5ce7);
+      background: var(--accent);
       color: white;
       border-bottom-right-radius: 4px;
     }
@@ -179,27 +248,31 @@
 
     .msg.system {
       align-self: center;
+      max-width: 80%;
       background: none;
-      color: var(--dim);
+      color: var(--text-dim);
       font-size: 11px;
-      padding: 4px 0;
+      text-align: center;
+      padding: 4px;
     }
 
     .msg-header {
       display: flex;
-      justify-content: space-between;
-      gap: 10px;
+      gap: 6px;
+      align-items: baseline;
       margin-bottom: 3px;
     }
 
-    .msg-name { font-size: 11px; font-weight: 600; opacity: 0.8; }
-    .msg-time { font-size: 10px; opacity: 0.5; }
+    .msg-name { font-size: 11px; font-weight: 600; color: var(--orange); }
+    .msg.mine .msg-name { color: rgba(255,255,255,0.6); }
+    .msg-time { font-size: 9px; color: var(--text-dim); }
+    .msg.mine .msg-time { color: rgba(255,255,255,0.4); }
 
     /* ─── INPUT ─── */
     .input-area {
-      padding: 10px 16px;
-      border-top: 1px solid var(--border);
+      padding: 12px 16px;
       background: var(--surface);
+      border-top: 1px solid var(--border);
       flex-shrink: 0;
     }
 
@@ -215,11 +288,15 @@
       border-radius: 10px;
       padding: 10px 14px;
       color: var(--text);
-      font-size: 14px;
+      font-size: 13px;
       outline: none;
+      transition: border-color 0.2s;
     }
 
-    .input-row input:focus { border-color: var(--accent); }
+    .input-row input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
 
     .input-row button {
       background: var(--accent);
@@ -227,18 +304,20 @@
       border: none;
       border-radius: 10px;
       padding: 10px 20px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
+      transition: all 0.15s;
     }
 
-    .input-row button:hover { background: #6b5ce7; }
-    .input-row button:disabled { opacity: 0.5; cursor: default; }
+    .input-row button:hover { background: #6b5ce7; transform: scale(1.02); }
+    .input-row button:active { transform: scale(0.98); }
+    .input-row button:disabled { opacity: 0.5; cursor: default; transform: none; }
 
     /* ─── SCROLLBAR ─── */
-    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
     /* ─── CONNECTING OVERLAY ─── */
     .connecting {
@@ -256,6 +335,17 @@
 
     .connecting.hidden { opacity: 0; pointer-events: none; }
 
+    .connecting-logo {
+      font-size: 48px;
+      margin-bottom: 8px;
+      animation: float 2s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
     .spinner {
       width: 40px; height: 40px;
       border: 3px solid var(--border);
@@ -267,8 +357,18 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .connecting p {
-      color: var(--dim);
+      color: var(--text-dim);
       font-size: 14px;
+    }
+
+    .connecting .app-title {
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--orange));
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
     }
   </style>
 </head>
@@ -276,15 +376,18 @@
 
   <!-- Connecting Overlay -->
   <div class="connecting" id="overlay">
+    <div class="connecting-logo">🍳</div>
+    <div class="app-title">EatPan</div>
     <div class="spinner"></div>
     <p id="overlayText">Підключення до P2P мережі...</p>
   </div>
 
-  <!-- Header -->
-  <div class="header">
+  <!-- Titlebar -->
+  <div class="titlebar">
     <h1>🍳 EatPan</h1>
-    <span class="badge">Web Chat</span>
-    <div class="status">
+    <span class="version">Web Chat</span>
+    <span class="my-name" id="myName" style="display:none"></span>
+    <div class="status-badge">
       <div class="status-dot" id="statusDot"></div>
       <span id="statusText">Connecting...</span>
     </div>
@@ -292,18 +395,26 @@
 
   <!-- Main -->
   <div class="main">
-    <div class="peers" id="peersPanel">
-      <h2>Online</h2>
-      <div id="peerList"></div>
+    <div class="sidebar">
+      <div class="room-section-title">🌍 Global Chat</div>
+      <div class="room-section-title" style="margin-top:8px;">Online</div>
+      <div class="peer-list" id="peerList"></div>
+      <div class="sidebar-footer">P2P • libp2p WebSocket</div>
     </div>
 
-    <div class="chat">
+    <div class="chat-area">
+      <!-- Chat header -->
+      <div class="chat-header">
+        <span class="chat-room-name">🌍 Global Chat</span>
+        <span class="chat-room-type">broadcast</span>
+      </div>
+
       <div class="messages" id="messages"></div>
 
       <div class="input-area">
         <div class="input-row">
           <input type="text" id="msgInput" placeholder="Напиши повідомлення..." autocomplete="off" disabled>
-          <button id="sendBtn" disabled>➤</button>
+          <button id="sendBtn" disabled>Надіслати</button>
         </div>
       </div>
     </div>
@@ -483,11 +594,15 @@ asn1js/build/index.es.js:
         div.className = 'peer'
         const isMe = id === myPeerId
         const route = info.route || info.via || 'unknown'
-        let icon = route === 'self' ? '' : route === 'direct' ? '🏠' : '🌐'
+        let connIcon = route === 'direct' ? '🏠' : route === 'relay' ? '🌐' : ''
+        const c = peerColor(info.name)
         div.innerHTML = `
-          <div class="peer-dot"></div>
-          <span class="peer-name">${esc(info.name)}${isMe ? ' (ти)' : ''}</span>
-          <span class="peer-type">${icon}</span>
+          <div class="peer-avatar" style="background:${c}">${info.name[0].toUpperCase()}</div>
+          <div class="peer-info">
+            <div class="peer-name">${esc(info.name)}${isMe ? ' (ти)' : ''}</div>
+          </div>
+          <span class="peer-conn-type">${connIcon}</span>
+          <div class="peer-online-dot"></div>
         `
         list.appendChild(div)
       }
@@ -521,6 +636,12 @@ asn1js/build/index.es.js:
         $el('overlay').classList.add('hidden')
         $el('statusDot').classList.add('online')
         $el('statusText').textContent = 'Online'
+        // Show user name in titlebar
+        const myNameEl = $el('myName')
+        if (p2p.name) {
+          myNameEl.textContent = p2p.name
+          myNameEl.style.display = ''
+        }
         $el('msgInput').disabled = false
         $el('sendBtn').disabled = false
         $el('msgInput').focus()
